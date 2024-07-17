@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tabela de Produtos e Fornecedores</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #d1d1d1dd;
+      padding: 8px;
+      text-align: left;
+      position: relative;
+    }
+    th {
+      background-color: #138afa;
+      color: white;
+    }
+    th:first-child, td:first-child {
+      width: 400px;
+      max-width: 400px;
+      min-width: 400px;
+      font-family: Calibri, sans-serif;
+      text-align: center;
+    }
+    th:nth-child(n+2), td:nth-child(n+2) {
+      width: 90px;
+      max-width: 90px;
+      min-width: 90px;
+      position: relative;
+      font-family: Calibri, sans-serif;
+      text-align: center;
+    }
+    th:nth-child(3), td:nth-child(3), th:nth-child(5), td:nth-child(5), th:nth-child(7), td:nth-child(7), th:nth-child(9), td:nth-child(9), th:nth-child(11), td:nth-child(11), th:nth-child(13), td:nth-child(13), th:nth-child(15), td:nth-child(15), th:nth-child(17), td:nth-child(17) {
+      width: 35px;
+      max-width: 35px;
+      min-width: 35px;
+      text-align: center;
+    }
+    th:nth-child(17), td:nth-child(17) {
+      width: 70px;
+      max-width: 70px;
+      min-width: 70px;
+      text-align: center;
+    }
+    th:nth-child(16), td:nth-child(16) {
+      width: 50px;
+      max-width: 50px;
+      min-width: 50px;
+      text-align: center;
+    }
+    .button-container {
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+    .clear-button, .sort-button, .download-button, .highlight-button {
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .suggestion-list {
+      position: absolute;
+      top: 0;
+      left: 100%;
+      z-index: 1;
+      background-color: #fff;
+      border: 1px solid #ddd;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+    h2 {
+      font-family: 'Arial Black', sans-serif;
+      font-size: 32px;
+      color: #333;
+      text-align: center;
+      margin-top: 20px;
+      text-shadow: 2px 2px 2px #ccc;
+    }
+    .green-row {
+      background-color: #b8e994;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Cotação Azul</h2>
+
+<div class="button-container">
+  <input type="file" id="csvInput" accept=".csv">
+  <button class="clear-button" onclick="limparTabela()">Limpar Dados</button>
+  <button class="sort-button" onclick="ordenarProdutos()">Ordenar Produtos (A-Z)</button>
+  <button class="download-button" onclick="downloadExcel()">Download Excel</button>
+  
+</div>
+
+<table id="dataTable">
+  <tr>
+    <th>Produto</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th contenteditable></th>
+    <th>Quant</th>
+    <th>$ Total</th>
+    <th>Requerido</th>
+  </tr>
+  <script>
+    for (let i = 0; i < 100; i++) {
+      document.write('<tr>');
+      for (let j = 0; j < 17; j++) {
+        if (j === 0) {
+          document.write('<td contenteditable oninput="showSuggestions(event, this)" style="font-family: Calibri, sans-serif;"></td>');
+        } else if (j % 2 === 0) {
+          document.write('<td contenteditable></td>');
+        } else {
+          document.write('<td contenteditable oninput="handleQuantityEdit(event, this)"></td>');
+        }
+      }
+      document.write('</tr>');
+    }
+  </script>
+</table>
+
+<div class="suggestion-list" id="suggestionList"></div>
+
+<script>
+  function limparTabela() {
+    const cells = document.querySelectorAll('#dataTable td[contenteditable]');
+    cells.forEach(cell => {
+      cell.textContent = '';
+    });
+    calcularSomaQuantidade();
+  }
+
+  let productList = [];
+
+  const csvInput = document.getElementById('csvInput');
+  csvInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        productList = content.trim().split('\n');
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  function showSuggestions(event, cell) {
+    const inputValue = cell.textContent.toLowerCase().trim();
+    const suggestionList = document.getElementById('suggestionList');
+    suggestionList.innerHTML = '';
+    const suggestions = productList.filter(product => product.toLowerCase().startsWith(inputValue));
+    if (suggestions.length > 0) {
+      suggestions.forEach(suggestion => {
+        const option = document.createElement('div');
+        option.textContent = suggestion;
+        option.onclick = function() {
+          cell.textContent = suggestion;
+          suggestionList.style.display = 'none';
+        };
+        suggestionList.appendChild(option);
+      });
+      suggestionList.style.top = `${cell.offsetTop}px`;
+      suggestionList.style.left = `${cell.offsetLeft + cell.offsetWidth}px`;
+      suggestionList.style.display = 'block';
+    } else {
+      suggestionList.style.display = 'none';
+    }
+  }
+
+  function ordenarProdutos() {
+    const table = document.getElementById('dataTable');
+    const rows = Array.from(table.rows).slice(1);
+    const sortedRows = rows
+      .filter(row => row.cells[0].textContent.trim() !== '')
+      .sort((a, b) => {
+        const productNameA = a.cells[0].textContent.toLowerCase();
+        const productNameB = b.cells[0].textContent.toLowerCase();
+        return productNameA.localeCompare(productNameB);
+      });
+    sortedRows.forEach((row, index) => {
+      table.rows[index + 1].parentNode.insertBefore(row, table.rows[index + 1]);
+    });
+  }
+
+  async function downloadExcel() {
+    const table = document.getElementById('dataTable');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Cotação de Preços');
+
+    // Adiciona cabeçalho à planilha e aplica formatação
+    const headerRow = [];
+    table.querySelectorAll('th').forEach(th => {
+        headerRow.push(th.textContent);
+    });
+    const header = worksheet.addRow(headerRow);
+    header.font = { color: { argb: 'FFFFFF' }, bold: true };
+    header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1C2842' } }; // Cor de fundo azul forte
+    header.eachCell(cell => {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' }; // Centraliza o texto na célula
+    });
+
+    // Adiciona dados à planilha e centraliza o texto
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+        const rowData = [];
+        row.querySelectorAll('td').forEach(cell => {
+            rowData.push(cell.textContent.trim());
+        });
+        const newRow = worksheet.addRow(rowData);
+        newRow.eachCell(cell => {
+            cell.alignment = { vertical: 'middle', horizontal: 'center' }; // Centraliza o texto na célula
+        });
+    });
+
+    // Encontra e destaca as células com menor preço
+    worksheet.eachRow((row, rowIndex) => {
+        let menorPreco = Infinity;
+        let menorPrecoCell = null;
+        row.eachCell((cell, colIndex) => {
+            if (colIndex % 2 === 0) { // Pula células de quantidade
+                const preco = parseFloat(cell.value.replace(',', '.'));
+                if (!isNaN(preco) && preco < menorPreco) {
+                    menorPreco = preco;
+                    menorPrecoCell = cell;
+                }
+            }
+        });
+        if (menorPrecoCell) {
+            menorPrecoCell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '03BB85' } // Cor verde
+            };
+        }
+    });
+
+    // Redimensiona as colunas automaticamente
+    worksheet.columns.forEach(column => {
+        let maxLength = 0;
+        column.eachCell({ includeEmpty: true }, cell => {
+            const length = cell.value ? cell.value.toString().length : 10;
+            if (length > maxLength) {
+                maxLength = length;
+            }
+        });
+        column.width = maxLength < 10 ? 10 : maxLength; // Define a largura mínima para 10
+    });
+
+    // Converte a planilha para um buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    // Cria um blob a partir do buffer
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    // Inicia o download
+    saveAs(blob, 'Cotação de Preços.xlsx');
+}
+
+
+function tableToArray(table) {
+  const data = [];
+  for (let i = 0; i < table.rows.length; i++) {
+    const row = [];
+    for (let j = 0; j < table.rows[i].cells.length; j++) {
+      row.push(table.rows[i].cells[j].textContent.trim());
+    }
+    data.push(row);
+  }
+  return data;
+}
+
+
+
+
+  function destacarPrecos() {
+  const table = document.getElementById('dataTable');
+  
+  // Itera sobre as linhas da tabela
+  for (let i = 1; i < table.rows.length; i++) {
+    let menorPreco = Infinity; // Inicializa com um valor alto
+    let menorPrecoCellIndex = -1; // Armazena o índice da célula com o menor preço
+      
+    // Itera sobre as colunas onde os preços estão
+    for (let j = 1; j <= 15; j += 2) { // Ajustado para pegar apenas as células de preços
+      const preco = parseFloat(table.rows[i].cells[j].textContent.trim().replace(',', '.')); // Substituído ',' por '.' para tratar corretamente os números
+      if (!isNaN(preco) && preco < menorPreco) {
+        menorPreco = preco;
+        menorPrecoCellIndex = j; // Atualiza o índice da célula com o menor preço
+      }
+    }
+      
+    // Itera novamente para colorir a célula com o menor preço de verde
+    for (let j = 1; j <= 15; j += 2) { // Ajustado para pegar apenas as células de preços
+      const preco = parseFloat(table.rows[i].cells[j].textContent.trim().replace(',', '.')); // Substituído ',' por '.' para tratar corretamente os números
+      if (!isNaN(preco) && preco === menorPreco) {
+        table.rows[i].cells[j].classList.add('green-row');
+      } else {
+        table.rows[i].cells[j].classList.remove('green-row');
+      }
+    }
+    
+    // Destaca a célula com o menor preço na planilha Excel
+    if (menorPrecoCellIndex !== -1) {
+      const ws = XLSX.utils.table_to_sheet(table);
+      ws[XLSX.utils.encode_cell({ r: i, c: menorPrecoCellIndex })].s = { fill: { fgColor: { rgb: "00FF00" } } }; // Cor verde
+    }
+  }
+}
+
+</script>
+
+</body>
+</html>
